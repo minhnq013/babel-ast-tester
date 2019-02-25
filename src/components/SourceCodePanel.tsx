@@ -1,61 +1,80 @@
-import {
-    Controlled as CodeMirrorComponent,
-    IControlledCodeMirror,
-    IInstance
-} from "react-codemirror2";
-import "codemirror/lib/codemirror.css";
-import "codemirror/theme/material.css";
-import "codemirror/theme/lesser-dark.css";
-import "codemirror/mode/javascript/javascript";
-import "codemirror/addon/fold/foldcode.js";
-import "codemirror/addon/fold/foldgutter.css";
-import "codemirror/addon/fold/foldgutter.js";
-import "codemirror/addon/fold/brace-fold.js";
-import React from "react";
-import styled from "styled-components";
+import brace, { Editor } from "brace";
+import AceEditor, { AceEditorProps, Marker } from "react-ace";
 
-const StyledCodeMirror = styled(CodeMirrorComponent)`
+import "brace/mode/javascript";
+import "brace/theme/monokai";
+import "brace/ext/language_tools";
+import styled from "styled-components";
+import React, { Component } from "react";
+
+const StyledAceEditor = styled(AceEditor)`
     width: 100%;
     height: 100%;
 
-    .CodeMirror {
-        height: 100%;
-        padding-left: 10px;
+    .marked-highlight {
+        background-color: rgba(50, 255, 255, 0.2);
+        position: absolute; /* Hack to fix ace editor marker issue */
     }
 `;
 
-interface Props extends IControlledCodeMirror {
-    foldOnMount?: boolean;
-    highlightGroups?: {
-        [key: string]: { start: number; end: number };
+export type IHighLightGroup = {
+    [key: string]: {
+        startRow: number;
+        startCol: number;
+        endRow: number;
+        endCol: number;
     };
-}
-
-const foldAllExceptFirst = (editor: IInstance) => {
-    editor.execCommand("foldAll");
-
-    // Unfold first line
-    // @ts-ignore
-    editor.foldCode(0, null, "unfold");
 };
 
-const SourceCodePanel = ({
-    highlightGroups = {},
-    foldOnMount = false,
-    options,
-    ...restProps
-}: Props) => (
-    <StyledCodeMirror
-        {...restProps}
-        editorDidMount={foldOnMount ? foldAllExceptFirst : () => {}}
-        onChange={editor => (foldOnMount ? foldAllExceptFirst(editor) : null)}
-        options={{
-            mode: "javascript",
-            theme: "material",
-            lineNumbers: true,
-            ...options
-        }}
-    />
-);
+interface Props extends AceEditorProps {
+    highlightGroups?: IHighLightGroup;
+}
 
-export default SourceCodePanel;
+export default class SourceCodePanel extends Component<Props> {
+    static defaultProps = {
+        highlightGroups: {}
+    };
+
+    aceEditor: Editor | null = null;
+
+    getMarkers = (): Marker[] => {
+        const { highlightGroups } = this.props;
+        if (!highlightGroups) {
+            return [];
+        }
+
+        return Object.values(this.props.highlightGroups!).map(group => ({
+            startRow: group.startRow - 1,
+            startCol: group.startCol,
+            endRow: group.endRow - 1,
+            endCol: group.endCol,
+            className: "marked-highlight",
+            type: "text",
+            inFront: true
+        }));
+    };
+
+    onLoad = (editor: any) => {
+        this.aceEditor = editor;
+    };
+
+    render() {
+        const { highlightGroups = {}, ...restProps } = this.props;
+
+        return (
+            <StyledAceEditor
+                onLoad={this.onLoad}
+                mode="javascript"
+                theme="monokai"
+                markers={this.getMarkers()}
+                setOptions={{
+                    enableLiveAutocompletion: true
+                }}
+                style={{
+                    height: "100%"
+                }}
+                {...restProps}
+            />
+        );
+    }
+}

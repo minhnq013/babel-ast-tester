@@ -20,15 +20,8 @@ export const compileAstSelectorScript = (
         selectorResults[`${path.node.start}-${path.node.end}`] = path.node;
     };
 
-    const func = new Function(
-        "File",
-        "Node",
-        "traverse",
-        "resolve",
-        "root",
-        script
-    );
-    const curried = func.bind(null, File, Node, traverse, astSelectorResolve);
+    const func = new Function("traverse", "resolve", "root", script);
+    const curried = func.bind(null, traverse, astSelectorResolve);
 
     return (root: File) => {
         curried(root);

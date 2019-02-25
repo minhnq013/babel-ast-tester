@@ -1,15 +1,18 @@
 import React, { Component } from "react";
 import styled from "styled-components";
-import SourceCodePanel from "../components/SourceCodePanel";
+import SourceCodePanel, {
+    IHighLightGroup
+} from "../components/SourceCodePanel";
 import FlexView from "react-flexview";
 import {
     getAst,
     compileAstSelectorScript,
     AstSelectorResult
 } from "../utils/common";
-import { File } from "@babel/types";
+import { File, Node } from "@babel/types";
 import FlyInAlert from "../components/FlyInAlert";
-import { IInstance } from "react-codemirror2";
+import AstTreeVisualizer from "../components/AstTreeVisualizer";
+import babelEslintParser from "../forked/astexplorer/website/src/parsers/js/babel-eslint";
 
 const FlexViewStyled = styled(FlexView)`
     height: 100vh;
@@ -17,11 +20,30 @@ const FlexViewStyled = styled(FlexView)`
     box-sizing: content-box;
 `;
 
+const StyledPlaceHolder = styled.div`
+    background-color: #272822;
+    color: #f8f8f2;
+    padding-left: 25px;
+    width: 100%;
+    font-family: monospace;
+
+    .declaration {
+        color: #66d9ef;
+    }
+    .type {
+        color: #a6e22e;
+    }
+`;
+
+const defaultAstCode = `// traverse(root, {
+//     VariableDeclaration: node => resolve(node)
+// });`;
+
 type States = {
     astCode: string;
     sourceCode: string;
     astSelectorResult: AstSelectorResult;
-    astTree: File | undefined;
+    astTree: Node | undefined;
     astCodeErrorMessage: string;
     errorMessage: string;
 };
@@ -43,9 +65,8 @@ export default class AstTester extends Component<{}, States> {
     buildAstTree = (source: string) => {
         let error = { message: "" };
         try {
-            return getAst("");
+            return getAst(source);
         } catch (err) {
-            console.error(err);
             error = err;
         } finally {
             this.setState({ errorMessage: error.message });
@@ -76,29 +97,50 @@ export default class AstTester extends Component<{}, States> {
         return {};
     };
 
-    onSourceCodeChange = (sourceCode: string) => {
-        const astTree = this.buildAstTree(sourceCode);
-        const astSelectorResult = this.buildAstResultTree(
-            this.state.astCode,
-            astTree
-        );
+    /**
+     * The Ast result tree computation is heavy.
+     * Thus wrap in debounce for asyn experience.
+     */
+    updateAstResultTreeDebounce = (astCode: string, sourceCode?: string) => {
+        const astTree = sourceCode
+            ? this.buildAstTree(sourceCode)
+            : this.state.astTree;
+        const astSelectorResult = this.buildAstResultTree(astCode, astTree);
+
         this.setState({
-            sourceCode,
-            astTree: this.buildAstTree(sourceCode),
-            astSelectorResult: astSelectorResult
+            astTree,
+            astSelectorResult
         });
     };
 
-    onAstCodeChange = (astCode: string) => {
-        const astSelectorResult = this.buildAstResultTree(
-            astCode,
-            this.state.astTree
-        );
-        this.setState({ astCode, astSelectorResult: astSelectorResult });
+    onSourceCodeChange = (sourceCode: string) => {
+        this.setState({ sourceCode });
+        this.updateAstResultTreeDebounce(this.state.astCode, sourceCode);
     };
 
-    onCursorActivity = (editor: IInstance) => {
-        editor.getCursor().line;
+    onAstCodeChange = (astCode: string) => {
+        this.setState({ astCode: astCode || defaultAstCode });
+        this.updateAstResultTreeDebounce(astCode);
+    };
+
+    getHightLightGroupFromAstSelector = () => {
+        const output: IHighLightGroup = {};
+        const selectorResults = this.state.astSelectorResult;
+        Object.keys(selectorResults).forEach((key: string) => {
+            const group = selectorResults[key];
+            const location = group.loc;
+            if (!location) {
+                return null;
+            }
+
+            output[key] = {
+                startRow: location.start.line,
+                startCol: location.start.column,
+                endRow: location.end.line,
+                endCol: location.end.column
+            };
+        });
+        return output;
     };
 
     componentDidUpdate() {
@@ -116,45 +158,39 @@ export default class AstTester extends Component<{}, States> {
                 )}
                 <FlexViewStyled>
                     <FlexView column grow height="100%">
-                        <FlexView basis="50%">
+                        <FlexView>
+                            <StyledPlaceHolder>
+                                <span className="declaration">function</span>
+                                {` ( traverse: `}
+                                <span className="type">@babel/traverse</span>
+                                {`, resolve: `}
+                                <span className="type">func(node: Node)</span>
+                                {`, root: `}
+                                <span className="type">@babel/types/Node</span>
+                                {` ) {`}
+                            </StyledPlaceHolder>
+                        </FlexView>
+                        <FlexView basis="35%">
                             <SourceCodePanel
+                                width="100%"
                                 value={this.state.astCode}
-                                onBeforeChange={(editor, data, value) =>
-                                    this.onAstCodeChange(value)
-                                }
+                                onChange={this.onAstCodeChange}
                             />
                         </FlexView>
-                        <FlexView basis="50%" marginTop="6px">
+                        <FlexView marginTop="6px" grow={1}>
                             <SourceCodePanel
+                                width="100%"
                                 value={this.state.sourceCode}
-                                highlightGroups={this.state.astSelectorResult}
-                                onCursorActivity={this.onCursorActivity}
-                                onBeforeChange={(editor, data, value) =>
-                                    this.onSourceCodeChange(value)
-                                }
+                                highlightGroups={this.getHightLightGroupFromAstSelector()}
+                                onChange={this.onSourceCodeChange}
                             />
                         </FlexView>
                     </FlexView>
                     <FlexView height="100%" basis="30%" marginLeft="6px">
-                        <SourceCodePanel
-                            value={JSON.stringify(
-                                Object.keys(this.state.astSelectorResult).length
-                                    ? this.state.astSelectorResult
-                                    : this.state.astTree.program.body,
-                                undefined,
-                                4
-                            )}
-                            onBeforeChange={() => {}}
-                            foldOnMount
-                            options={{
-                                mode: { name: "javascript", json: true },
-                                readOnly: true,
-                                foldGutter: true,
-                                gutters: [
-                                    "CodeMirror-linenumbers",
-                                    "CodeMirror-foldgutter"
-                                ]
-                            }}
+                        <AstTreeVisualizer
+                            ast={this.state.astTree}
+                            focusPath={[this.state.astSelectorResult]}
+                            parser={babelEslintParser}
                         />
                     </FlexView>
                 </FlexViewStyled>

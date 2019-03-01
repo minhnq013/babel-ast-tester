@@ -18,23 +18,18 @@ const StyledAceEditor = styled(AceEditor)`
 `;
 
 export type IHighLightGroup = {
-    [key: string]: {
-        startRow: number;
-        startCol: number;
-        endRow: number;
-        endCol: number;
-    };
+    startRow: number;
+    startCol: number;
+    endRow: number;
+    endCol: number;
+    className?: string;
 };
 
 interface Props extends AceEditorProps {
-    highlightGroups?: IHighLightGroup;
+    highlightGroups?: IHighLightGroup[];
 }
 
 export default class SourceCodePanel extends Component<Props> {
-    static defaultProps = {
-        highlightGroups: {}
-    };
-
     aceEditor: Editor | null = null;
 
     getMarkers = (): Marker[] => {
@@ -43,12 +38,12 @@ export default class SourceCodePanel extends Component<Props> {
             return [];
         }
 
-        return Object.values(this.props.highlightGroups!).map(group => ({
+        return highlightGroups.map(group => ({
             startRow: group.startRow - 1,
             startCol: group.startCol,
             endRow: group.endRow - 1,
             endCol: group.endCol,
-            className: "marked-highlight",
+            className: group.className || "marked-highlight",
             type: "text",
             inFront: true
         }));

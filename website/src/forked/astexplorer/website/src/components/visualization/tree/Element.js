@@ -115,8 +115,13 @@ let Element = class extends React.Component {
     }
 
     _onMouseOver(e) {
+        const { open, deepOpen, value } = this.state;
         e.stopPropagation();
-        this.props.onMouseOver(e, this.state);
+        this.props.onMouseOver(e, {
+            open,
+            deepOpen,
+            value: Array.isArray(value) ? value : [value]
+        });
     }
 
     _onMouseLeave(e) {
@@ -175,6 +180,8 @@ let Element = class extends React.Component {
                 parser={this.props.parser}
                 settings={this.props.settings}
                 parent={this.props.value}
+                onMouseOver={this.props.onMouseOver}
+                onMouseLeave={this.props.onMouseLeave}
             />
         );
     }

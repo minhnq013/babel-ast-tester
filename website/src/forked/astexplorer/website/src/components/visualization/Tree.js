@@ -1,7 +1,6 @@
 import Element from "./tree/Element";
 import PropTypes from "prop-types";
 import React from "react";
-import PubSub from "pubsub-js";
 
 import "./css/tree.css";
 
@@ -81,17 +80,15 @@ export default class Tree extends React.Component {
                         Hide type keys
                     </label>
                 </div>
-                <ul
-                    onMouseLeave={() => {
-                        PubSub.publish("CLEAR_HIGHLIGHT");
-                    }}
-                >
+                <ul onMouseLeave={this.props.onMouseLeave}>
                     <Element
                         focusPath={this.props.focusPath}
                         value={this.props.ast}
                         level={0}
                         parser={this.props.parser}
                         settings={this.state}
+                        onMouseOver={this.props.onNodeMouseEnter}
+                        onMouseLeave={this.props.onNodeMouseLeave}
                     />
                 </ul>
             </div>
@@ -102,5 +99,12 @@ export default class Tree extends React.Component {
 Tree.propTypes = {
     focusPath: PropTypes.array,
     ast: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
-    parser: PropTypes.object
+    parser: PropTypes.object,
+    onNodeMouseEnter: PropTypes.func,
+    onNodeMouseLeave: PropTypes.func
+};
+
+Tree.defaultProps = {
+    onNodeMouseEnter: () => {},
+    onNodeMouseLeave: () => {}
 };

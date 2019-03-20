@@ -1,5 +1,5 @@
 {
-    "name": "babel-ast-tester",
+    "name": "babel-ast-tester-website",
     "version": "0.1.0",
     "private": true,
     "dependencies": {

@@ -2,13 +2,12 @@ import React, { Component } from "react";
 import styled from "styled-components";
 import SourceCodePanel, { IHighLightGroup } from "../components/SourceCodePanel";
 import FlexView from "react-flexview";
-import { getAst, compileAstSelectorScript, AstSelectorResult } from "../utils/common";
 import { Node } from "@babel/types";
 import FlyInAlert from "../components/FlyInAlert";
 import AstTreeVisualizer from "../components/AstTreeVisualizer";
 import babelEslintParser from "../forked/astexplorer/website/src/parsers/js/babel-eslint";
 import { Selection } from "react-ace";
-import babelEslintParserAdapter from "../parser-adapters/js/babel-eslint";
+import { getAst } from "../apis/ast";
 
 const FlexViewStyled = styled(FlexView)`
     height: 100vh;
@@ -34,6 +33,8 @@ const StyledPlaceHolder = styled.div`
 const defaultAstCode = `// traverse(root, {
 //     VariableDeclaration: node => resolve(node)
 // });`;
+
+export type AstSelectorResult = Node[];
 
 type States = {
     astCode: string;
